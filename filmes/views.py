@@ -7,12 +7,13 @@ import json
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_http_methods
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.password_validation import validate_password
 from django.db import IntegrityError, transaction
 
 from .forms import CadastroForm
 from .models import Perfil
+
 
 
 
@@ -113,3 +114,34 @@ def cadastrar_usuario(request):
         raise
 
     return JsonResponse({"id": usuario.pk, "nome": usuario.first_name}, status=201)
+
+@require_http_methods(["POST"])
+def entrar_usuario(request):
+    try:
+        dados = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({"erro": "Envie um JSON válido."}, status=400)
+
+    if not isinstance(dados, dict):
+        return JsonResponse({"erro": "Envie um objeto com e-mail e senha."}, status=400)
+
+    email = dados.get("email")
+    senha = dados.get("senha")
+
+    if not isinstance(email, str) or not email.strip():
+        return JsonResponse({"erro": "Informe o e-mail."}, status=400)
+
+    if not isinstance(senha, str) or not senha:
+        return JsonResponse({"erro": "Informe a senha."}, status=400)
+
+    usuario = authenticate(
+        request,
+        username=email.strip().lower(),
+        password=senha,
+    )
+
+    if usuario is None:
+        return JsonResponse({"erro": "E-mail ou senha inválidos."}, status=401)
+
+    login(request, usuario)
+    return JsonResponse({"id": usuario.pk, "nome": usuario.first_name})
