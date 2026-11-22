@@ -41,6 +41,22 @@ class Avaliacao(models.Model):
             ),
         ]
 
+class Comentario(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
+
+    filme = models.ForeignKey(
+        Filme,
+        on_delete=models.CASCADE,
+        related_name="comentarios",
+    )
+
+    texto = models.TextField()
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
         return self.titulo
     
