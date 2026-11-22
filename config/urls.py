@@ -19,6 +19,7 @@ from django.http import HttpResponse
 from django.urls import path
 from django.urls import include, path
 from filmes.views import cadastrar_usuario, entrar_usuario
+from filmes.views import cadastrar_usuario, entrar_usuario, minha_conta
 
 
 
@@ -32,4 +33,5 @@ urlpatterns = [
     path("movies/", include("filmes.urls")),
     path("auth/register/", cadastrar_usuario, name="cadastrar_usuario"),
     path("auth/login/", entrar_usuario, name="entrar_usuario"),
+    path("users/me/", minha_conta, name="minha_conta"),
 ]

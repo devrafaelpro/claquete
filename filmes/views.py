@@ -145,3 +145,19 @@ def entrar_usuario(request):
 
     login(request, usuario)
     return JsonResponse({"id": usuario.pk, "nome": usuario.first_name})
+
+@require_http_methods(["GET"])
+def minha_conta(request):
+    usuario = request.user
+
+    if not usuario.is_authenticated:
+        return JsonResponse({"erro": "Faça login para acessar sua conta."}, status=401)
+
+    perfil = Perfil.objects.filter(usuario=usuario).first()
+
+    return JsonResponse({
+        "id": usuario.pk,
+        "nome": usuario.first_name,
+        "email": usuario.email,
+        "genero_preferido": perfil.genero_preferido if perfil else "",
+    })
