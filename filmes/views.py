@@ -7,6 +7,13 @@ import json
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_http_methods
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.db import IntegrityError, transaction
+
+from .forms import CadastroForm
+from .models import Perfil
+
 
 
 @require_http_methods(["GET", "POST"])
@@ -61,3 +68,48 @@ def detalhe_filme(request, filme_id):
         "genero": filme.genero,
         "sinopse": filme.sinopse,
     })
+
+@require_http_methods(["POST"])
+def cadastrar_usuario(request):
+    try:
+        dados = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({"erro": "Envie um JSON válido."}, status=400)
+
+    if not isinstance(dados, dict):
+        return JsonResponse(
+            {"erro": "Envie os dados da conta em um objeto."},
+            status=400,
+        )
+
+    formulario = CadastroForm(dados)
+    if not formulario.is_valid():
+        return JsonResponse({"erros": formulario.errors}, status=400)
+
+    campos = formulario.cleaned_data
+    email = campos["email"].lower()
+    senha = campos["senha"]
+
+    Usuario = get_user_model()
+    usuario = Usuario(username=email, email=email, first_name=campos["nome"])
+
+    try:
+        validate_password(senha, user=usuario)
+    except ValidationError as erro:
+        return JsonResponse({"erros": {"senha": erro.messages}}, status=400)
+
+    usuario.set_password(senha)
+
+    try:
+        with transaction.atomic():
+            usuario.save()
+            Perfil.objects.create(
+                usuario=usuario,
+                genero_preferido=campos["genero_preferido"],
+            )
+    except IntegrityError:
+        if Usuario.objects.filter(username=email).exists():
+            return JsonResponse({"erro": "Este e-mail já está cadastrado."}, status=409)
+        raise
+
+    return JsonResponse({"id": usuario.pk, "nome": usuario.first_name}, status=201)

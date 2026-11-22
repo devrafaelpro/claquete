@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path
 from django.urls import include, path
-
+from filmes.views import cadastrar_usuario
 
 def inicio(request):
     return HttpResponse("Bem-vindo ao Claquete!")
@@ -28,4 +28,5 @@ urlpatterns = [
     path("", inicio, name="inicio"),
     path("admin/", admin.site.urls),
     path("movies/", include("filmes.urls")),
+    path("auth/register/", cadastrar_usuario, name="cadastrar_usuario"),
 ]
