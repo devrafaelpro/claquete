@@ -14,6 +14,9 @@ from django.db import IntegrityError, transaction
 from .forms import CadastroForm
 from .models import Perfil
 
+from django.db.models import Avg, Count
+from .models import Avaliacao
+
 
 
 
@@ -161,3 +164,49 @@ def minha_conta(request):
         "email": usuario.email,
         "genero_preferido": perfil.genero_preferido if perfil else "",
     })
+
+@require_http_methods(["GET", "POST"])
+def avaliacoes_filme(request, filme_id):
+    try:
+        filme = Filme.objects.get(pk=filme_id)
+    except Filme.DoesNotExist:
+        return JsonResponse({"erro": "Filme não encontrado."}, status=404)
+
+    if request.method == "GET":
+        # "avaliacoes" é o related_name que você colocou no modelo.
+        resumo = filme.avaliacoes.aggregate(media=Avg("nota"), total=Count("id"))
+
+        minha_nota = None
+        if request.user.is_authenticated:
+            minha_nota = (
+                filme.avaliacoes.filter(usuario=request.user)
+                .values_list("nota", flat=True)
+                .first()
+            )
+
+        return JsonResponse({
+            "media": resumo["media"],
+            "total": resumo["total"],
+            "minha_nota": minha_nota,
+        })
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"erro": "Faça login para avaliar."}, status=401)
+
+    try:
+        dados = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({"erro": "Envie um JSON válido."}, status=400)
+
+    nota = dados.get("nota") if isinstance(dados, dict) else None
+    if type(nota) is not int or not 1 <= nota <= 5:
+        return JsonResponse({"erro": "Envie uma nota inteira de 1 a 5."}, status=400)
+
+    # Usuário e filme identificam a avaliação. Só o valor da nota muda.
+    avaliacao, criada = Avaliacao.objects.update_or_create(
+        usuario=request.user,
+        filme=filme,
+        defaults={"nota": nota},
+    )
+
+    return JsonResponse({"nota": avaliacao.nota}, status=201 if criada else 200)
