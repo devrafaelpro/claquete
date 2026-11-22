@@ -210,3 +210,51 @@ def avaliacoes_filme(request, filme_id):
     )
 
     return JsonResponse({"nota": avaliacao.nota}, status=201 if criada else 200)
+
+@require_http_methods(["GET", "POST"])
+def comentarios_filme(request, filme_id):
+    try:
+        filme = Filme.objects.get(pk=filme_id)
+    except Filme.DoesNotExist:
+        return JsonResponse({"erro": "Filme não encontrado."}, status=404)
+
+    if request.method == "GET":
+        # Busca os comentários deste filme, do mais antigo ao mais recente.
+        # select_related carrega o autor junto com cada comentário.
+        comentarios = filme.comentarios.select_related("usuario").order_by("criado_em", "id")
+
+        dados = [
+            {
+                "id": comentario.id,
+                "autor": comentario.usuario.first_name,
+                "texto": comentario.texto,
+                "criado_em": comentario.criado_em,
+            }
+            for comentario in comentarios
+        ]
+        return JsonResponse(dados, safe=False)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"erro": "Faça login para comentar."}, status=401)
+
+    try:
+        dados = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({"erro": "Envie um JSON válido."}, status=400)
+
+    texto = dados.get("texto") if isinstance(dados, dict) else None
+    if not isinstance(texto, str) or not texto.strip():
+        return JsonResponse({"erro": "Escreva um comentário."}, status=400)
+
+    # O filme vem da URL e o autor vem da sessão de login.
+    comentario = filme.comentarios.create(
+        usuario=request.user,
+        texto=texto.strip(),
+    )
+
+    return JsonResponse({
+        "id": comentario.id,
+        "autor": request.user.first_name,
+        "texto": comentario.texto,
+        "criado_em": comentario.criado_em,
+    }, status=201)
