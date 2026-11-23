@@ -3,7 +3,8 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import include, path
 from filmes.views import cadastrar_usuario, entrar_usuario, minha_conta
-
+from django.conf import settings
+from django.conf.urls.static import static
 
 def inicio(request):
     return HttpResponse("Bem-vindo ao Claquete!")
@@ -17,3 +18,7 @@ urlpatterns = [
     path("auth/login/", entrar_usuario, name="entrar_usuario"),
     path("users/me/", minha_conta, name="minha_conta"),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
