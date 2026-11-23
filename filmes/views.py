@@ -17,7 +17,7 @@ from .models import Perfil
 from django.db.models import Avg, Count
 from .models import Avaliacao
 
-
+from .forms import CadastroForm, FilmeForm
 
 
 @require_http_methods(["GET", "POST"])
@@ -35,28 +35,34 @@ def lista_filmes(request):
     return JsonResponse(list(dados), safe=False)
 
 def cadastrar_filme(request):
-    try:
-        dados = json.loads(request.body)
-    except ValueError:
-        return JsonResponse({"erro": "Envie um JSON válido."}, status=400)
+    if request.content_type == "multipart/form-data":
+        # Os campos de texto vêm em POST e a imagem vem em FILES.
+        formulario = FilmeForm(request.POST, request.FILES)
 
-    if not isinstance(dados, dict):
-        return JsonResponse({"erro": "Envie os dados do filme em um objeto JSON."}, status=400)
+    elif request.content_type == "application/json":
+        try:
+            dados = json.loads(request.body)
+        except ValueError:
+            return JsonResponse({"erro": "Envie um JSON válido."}, status=400)
 
-    filme = Filme(
-        titulo=dados.get("titulo"),
-        ano=dados.get("ano"),
-        genero=dados.get("genero"),
-        sinopse=dados.get("sinopse"),
-    )
+        if not isinstance(dados, dict):
+            return JsonResponse({"erro": "Envie os dados do filme em um objeto."}, status=400)
 
-    try:
-        filme.full_clean()
-    except ValidationError as erro:
-        return JsonResponse({"erros": erro.message_dict}, status=400)
+        formulario = FilmeForm(dados)
 
-    filme.save()
-    return JsonResponse({"id": filme.id, "titulo": filme.titulo}, status=201)
+    else:
+        return JsonResponse({"erro": "Use JSON ou multipart/form-data."}, status=415)
+
+    if not formulario.is_valid():
+        return JsonResponse({"erros": formulario.errors}, status=400)
+
+    filme = formulario.save()
+
+    return JsonResponse({
+        "id": filme.id,
+        "titulo": filme.titulo,
+        "capa": filme.capa.url if filme.capa else None,
+    }, status=201)
 
 @require_http_methods(["GET"])
 def detalhe_filme(request, filme_id):
