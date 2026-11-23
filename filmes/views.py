@@ -31,8 +31,8 @@ def lista_filmes(request):
     if busca:
         filmes = filmes.filter(titulo__icontains=busca)
 
-    dados = filmes.values("id", "titulo", "ano", "genero", "sinopse")
-    return JsonResponse(list(dados), safe=False)
+    dados = [dados_do_filme(filme) for filme in filmes]
+    return JsonResponse(dados, safe=False)
 
 def cadastrar_filme(request):
     if request.content_type == "multipart/form-data":
@@ -71,13 +71,7 @@ def detalhe_filme(request, filme_id):
     except Filme.DoesNotExist:
         return JsonResponse({"erro": "Filme não encontrado."}, status=404)
 
-    return JsonResponse({
-        "id": filme.id,
-        "titulo": filme.titulo,
-        "ano": filme.ano,
-        "genero": filme.genero,
-        "sinopse": filme.sinopse,
-    })
+    return JsonResponse(dados_do_filme(filme))
 
 @require_http_methods(["POST"])
 def cadastrar_usuario(request):
@@ -264,3 +258,14 @@ def comentarios_filme(request, filme_id):
         "texto": comentario.texto,
         "criado_em": comentario.criado_em,
     }, status=201)
+
+def dados_do_filme(filme):
+    return {
+        "id": filme.id,
+        "titulo": filme.titulo,
+        "ano": filme.ano,
+        "genero": filme.genero,
+        "sinopse": filme.sinopse,
+        # Só acessamos .url quando existe uma imagem associada ao filme.
+        "capa": filme.capa.url if filme.capa else None,
+    }
